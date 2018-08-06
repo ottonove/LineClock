@@ -103,9 +103,9 @@ $.gulp.task("js", () => {
     .pipe($.gulp.dest(PATH.htdocs + "assets/js/"));
 
   // libs
-  $.gulp
-    .src([PATH.src + "js/libs/**/*.js"])
-    .pipe($.plugins.plumber())
-    .pipe($.plugins.concat("libs.js"))
-    .pipe($.gulp.dest(PATH.htdocs + "assets/js/"));
+  // $.gulp
+  //   .src([PATH.src + "js/libs/**/*.js"])
+  //   .pipe($.plugins.plumber())
+  //   .pipe($.plugins.concat("libs.js"))
+  //   .pipe($.gulp.dest(PATH.htdocs + "assets/js/"));
 });

@@ -1,23 +1,18 @@
 import RenderManeger3D from "./RenderManeger3D";
 
 
-		// 使わない
-		// 数値単位のパーティクル量
-		const particleCount = 1000;
+// 数値の頂点座標管理用
+let numGeometryList = [];
+let numGeoList = [];
 
+// 最大長点数をもつGeometry
+let maxGeometry = null;
 
-// 数値のパーティクル座標管理用
-let numberList = [];
+// 時間（文字）の頂点管理用
+let vertexesSystemList = [];
 
-// 最大長点数
-let maxVertexes = 0;
-
-// 時間のパーティクル管理用
-let particleSystemList = [];
-
-// 現在時
+// 現在時間（6桁の文字列）
 let now = getNow();
-
 
 
 export default function () {
@@ -25,115 +20,126 @@ export default function () {
 		isController: true
 	});
 
-	// パーティクルテクスチャ
-	let texture = new THREE.TextureLoader().load("../assets/img/icon.png");
-	texture.minFilter = THREE.LinearFilter;
-	texture.magFilter = THREE.LinearFilter;
-	texture.format = THREE.RGBFormat;
-
-	// numberListに数字のパーティクル生成して座標をキャッシュしておく
+	// numGeometryListに数字の頂点生成して座標をキャッシュしておく
 	// font loader
 	let loader = new THREE.FontLoader();
-	let typeface = "../assets/fonts/helvetiker_bold.typeface.json?" + performance.now();
+	let typeface = "../assets/fonts/helvetiker_regular.typeface.json?" + performance.now();
 
 	loader.load(typeface, (font) => {
 		for (let i = 0; i < 10; ++i) {
-			numberList[i] = {};
+			numGeometryList[i] = {};
 
 			// TextGeometry
-			numberList[i].geometry = new THREE.TextGeometry(i, {
+			numGeometryList[i] = new THREE.TextBufferGeometry(i, {
 				font: font,
+				// size: 40,
+				// height: 8,
+				// curveSegments: 5,
+				// bevelEnabled: true,
+				// bevelThickness: 5,
+				// bevelSize: 1.5,
+				// bevelSegments: 5
+
 				size: 40,
-				height: 8,
+				height: 10,
 				curveSegments: 10,
+
+				bevelThickness: 5,
+				bevelSize: 2,
+				bevelEnabled: true,
+				bevelSegments: 10,
+
 			});
 
-			// ジオメトリを中点の中央に配置
-			numberList[i].geometry.center();
+			// ジオメトリを中央に配置
+			numGeometryList[i].center();
 
-// 使わない
-			// Geometry パーティクル管理用
-			numberList[i].particles = new THREE.Geometry();
-
-// 使わない
-			// TextGeometry内にランダムな頂点を生成
-			numberList[i].points = THREE.GeometryUtils.randomPointsInGeometry(numberList[i].geometry, particleCount);
-			// numberList[i].points = numberList[i].geometry.vertices.concat();
-
-// 使わない
-			// Geometryに頂点追加
-			numberList[i].particles.vertices = createVertices(numberList[i].points);
-			// console.log(numberList[i].particles.vertices);
-			// console.log(numberList[i].geometry.vertices.concat());
-			// numberList[i].particles.vertices = numberList[i].geometry.vertices.concat();
-
-			// 最大頂点数保管
-			if (maxVertexes < numberList[i].geometry.vertices.length){
-				maxVertexes = numberList[i].geometry.vertices.length;
+			// 最大頂点を持つGeometryを保管
+			if (!maxGeometry || maxGeometry.attributes.position.count < numGeometryList[i].attributes.position.count){
+				maxGeometry = numGeometryList[i];
 			}
 		}
 
+		// 最大頂点数
+		let count = maxGeometry.attributes.position.count;
 
+		// numGeoList 数字geometryキャッシュ用
+		for (let i = 0; i < 10; ++i) {
+			let geometry = new THREE.BufferGeometry();
+			let position = new THREE.Float32BufferAttribute(count * 3, 3);
 
-		// 表示する時間のパーティクルを生成
-		for (let i = 0; i < 6; ++i) {
-			let particles = new THREE.Geometry();
-
-			// パーティクルの初期位置
-			for (let p = 0; p < particleCount; p++) {
-				let vertex = new THREE.Vector3();
-				vertex.x = 0;
-				vertex.y = 0;
-				vertex.z = 0;
-
-				particles.vertices.push(vertex);
+			let numAry = numGeometryList[i].attributes.position.array;
+			let len = position.array.length;
+			for (let j = 0; j < len; j += 1) {
+				// if (numAry.length-1 < j){
+				// 	position.array[j] = numAry[numAry.length-1];
+				// } else {
+				// 	position.array[j] = numAry[j];
+				// }
+				position.array[j] = numAry[j % numAry.length];
 			}
 
-			// PointsMaterial
 
-			let pMaterial = new THREE.PointsMaterial({
-				size: .5 * window.devicePixelRatio,
-				map: texture,
-				transparent: true
-			});
+			geometry.addAttribute('position', position);
+			numGeoList[i] = geometry;
+
+			numGeoList[i].opacityAmount = count/ numGeometryList[i].attributes.position.count;
+		}
+
+
+		// 表示する時間の頂点を生成
+		for (let i = 0; i < 6; ++i) {
+			let geometry = new THREE.BufferGeometry();
+
+			let position = new THREE.Float32BufferAttribute(count * 3, 3);
+			position.array = new Float32Array(numGeoList[now[i]].attributes.position.array);
+			geometry.addAttribute('position', position);
+
+			let nextPosition = new THREE.Float32BufferAttribute(count * 3, 3);
+			nextPosition.array = new Float32Array(numGeoList[now[i]].attributes.position.array);
+			geometry.addAttribute('nextPosition', nextPosition);
+
+			let customColor = new THREE.Float32BufferAttribute(count * 3, 3);
+			geometry.addAttribute('customColor', customColor);
+
+			let color = new THREE.Color(0xffffff);
+			for (let j = 0; j < customColor.count; j++) {
+				// console.log(j / customColor.count);
+				// color.setHSL( (j / customColor.count), 0.5, 0.5);
+				color.setHSL( i/6, 0.5, 0.5);
+				color.toArray(customColor.array, j * customColor.itemSize);
+			}
+
+			let uniforms = {
+				opacity: { type: "f", value: 0.2 },
+				opacityAmount: { type: "f", value: numGeoList[now[i]].opacityAmount},
+				color: { type: "c", value: new THREE.Color(0xffffff) },
+				time: { type: "f", value: 0},
+				progress: { type: "f", value: 0},
+			};
 
 			let shaderMaterial = new THREE.ShaderMaterial({
-				// uniforms: uniforms,
-				// vertexShader: document.getElementById('vertexshader').textContent,
-				// fragmentShader: document.getElementById('fragmentshader').textContent,
+				uniforms: uniforms,
+				vertexShader: require("../../shader/default.vert"),
+				fragmentShader: require("../../shader/default.frag"),
 				blending: THREE.AdditiveBlending,
 				depthTest: false,
 				transparent: true
 			});
 
-			let particleSystem = new THREE.Line(particles, shaderMaterial);
-			// let particleSystem = new THREE.Points(particles, pMaterial);
-			// particleSystem.sortParticles = true;
-			particleSystem.position.x = 34 * i - (34 * 2.55);
+			let vertexesSystem = new THREE.Line(geometry, shaderMaterial);
+			vertexesSystem.position.x = 35 * i - (35 * 2.5);
 
-			// 時間管理用パーティクル
-			particleSystemList.push({
-				particleSystem: particleSystem,
-				particles: particles
-			});
-
-			renderManeger3D.scene.add(particleSystem);
+			// 時間表示用頂点
+			vertexesSystemList.push(vertexesSystem);
+			renderManeger3D.scene.add(vertexesSystem);
 		}
 
 
-
-		// 読み込み完了後
-		for (let i = 0; i < now.length; i++) {
-			let psList = particleSystemList[i];
-			let p = numberList[+now[i]].particles;
-
-			for (let j = 0; j < psList.particles.vertices.length; j++) {
-				psList.particles.vertices[j] = new THREE.Vector3(p.vertices[j].x, p.vertices[j].y, p.vertices[j].z);
-			}
-		}
+		// renderManeger3D.scene.background = new THREE.Color(0x050505);
 
 		// camera positon
-		renderManeger3D.camera.position.z = 120;
+		renderManeger3D.camera.position.z = 150;
 
 		if (INK.isSmartPhone()) {
 			renderManeger3D.camera.position.z = 360;
@@ -145,22 +151,22 @@ export default function () {
 
 
 	// update
-	// renderManeger3D.event.on("update", () => {
-	// 	particleSystemList.forEach((psList) => {
-	// 		psList.particles.verticesNeedUpdate = true;
-	// 		psList.particleSystem.material.color = new THREE.Color("#FFFFFF");
-	// 	});
+	renderManeger3D.event.on("update", () => {
+		vertexesSystemList.forEach((item)=>{
+			item.material.uniforms.color.value.offsetHSL(0.0005, 0, 0);
+			item.material.uniforms.time.value += 1/60;
+		});
 
-	// 	let _now = getNow();
-	// 	if (now != _now) {
-	// 		for (let i = 0; i < now.length; i++) {
-	// 			if (now[i] != _now[i]) {
-	// 				morphTo(i, +_now[i]);
-	// 			}
-	// 		}
-	// 		now = _now;
-	// 	}
-	// });
+		let _now = getNow();
+		if (now != _now) {
+			for (let i = 0; i < now.length; i++) {
+				if (now[i] != _now[i]) {
+					morphTo(i, +_now[i]);
+				}
+			}
+			now = _now;
+		}
+	});
 }
 
 
@@ -168,36 +174,26 @@ export default function () {
 	utils
 --------------------------------------------------------------------------*/
 /**
- * @method createVertices ジオメトリに頂点追加
- * @param {Array} points ポイントリスト
- */
-function createVertices(points) {
-	let vertices = [];
-	for (let p = 0; p < particleCount; p++) {
-		let vertex = new THREE.Vector3(points[p].x, points[p].y, points[p].z);
-		vertices.push(vertex);
-	}
-	return vertices;
-}
-
-
-/**
  * @method morphTo モーフィングアニメーション
  * @param {Number} index 桁数（頭から数えて）
  * @param {Number} num アニメーションする数字
  */
 function morphTo(index, num) {
-	let psList = particleSystemList[index];
-	let p = numberList[num].particles;
+	vertexesSystemList[index].geometry.attributes.nextPosition.array = new Float32Array(numGeoList[num].attributes.position.array);
 
-	for (let i = 0; i < psList.particles.vertices.length; i++) {
-		TweenMax.to(psList.particles.vertices[i], .7, {
-			ease: Expo.easeInOut,
-			x: p.vertices[i].x,
-			y: p.vertices[i].y,
-			z: p.vertices[i].z
-		});
-	}
+	vertexesSystemList[index].material.uniforms.progress.value = 0;
+	vertexesSystemList[index].material.uniforms.opacityAmount.value = numGeoList[num].opacityAmount;
+
+	vertexesSystemList[index].geometry.attributes.position.needsUpdate = true;
+	vertexesSystemList[index].geometry.attributes.nextPosition.needsUpdate = true;
+
+	TweenMax.to(vertexesSystemList[index].material.uniforms.progress, .5, {
+		value: 1,
+		ease: Expo.easeOut,
+		onComplete: () => {
+			vertexesSystemList[index].geometry.attributes.position.array = new Float32Array(numGeoList[num].attributes.position.array);
+		}
+	});
 }
 
 
