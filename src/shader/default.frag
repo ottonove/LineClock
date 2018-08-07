@@ -1,9 +1,14 @@
 varying vec3 vColor;
+varying float vOpacity;
+
 uniform vec3 color;
 uniform float opacity;
-uniform float opacityAmount;
 
 void main() {
-	// gl_FragColor = vec4(vColor/opacityAmount * (color/opacityAmount), (.3));
-	gl_FragColor = vec4(vColor/1.0 * (color/1.0), (.3/opacityAmount));
+	if(vOpacity == 0.0){
+		discard;
+	} else {
+		gl_FragColor = vec4(vColor * color, (vOpacity * opacity));
+	}
+	// gl_FragColor = vec4(vColor * color, (vOpacity * opacity));
 }

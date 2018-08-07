@@ -2,14 +2,13 @@ import RenderManeger3D from "./RenderManeger3D";
 
 
 // 数値の頂点座標管理用
-let numGeometryList = [];
 let numGeoList = [];
 
-// 最大長点数をもつGeometry
+// 最大頂点数をもつGeometry
 let maxGeometry = null;
 
 // 時間（文字）の頂点管理用
-let vertexesSystemList = [];
+let vertexList = [];
 
 // 現在時間（6桁の文字列）
 let now = getNow();
@@ -26,29 +25,21 @@ export default function () {
 	let typeface = "../assets/fonts/helvetiker_regular.typeface.json?" + performance.now();
 
 	loader.load(typeface, (font) => {
+		// numGeometryList
+		// 0から9までのTextBufferGeometryを生成
+		let numGeometryList = [];
 		for (let i = 0; i < 10; ++i) {
 			numGeometryList[i] = {};
 
-			// TextGeometry
 			numGeometryList[i] = new THREE.TextBufferGeometry(i, {
 				font: font,
-				// size: 40,
-				// height: 8,
-				// curveSegments: 5,
-				// bevelEnabled: true,
-				// bevelThickness: 5,
-				// bevelSize: 1.5,
-				// bevelSegments: 5
-
 				size: 40,
-				height: 10,
+				height: 15,
 				curveSegments: 10,
-
 				bevelThickness: 5,
 				bevelSize: 2,
 				bevelEnabled: true,
-				bevelSegments: 10,
-
+				bevelSegments: 10
 			});
 
 			// ジオメトリを中央に配置
@@ -63,27 +54,43 @@ export default function () {
 		// 最大頂点数
 		let count = maxGeometry.attributes.position.count;
 
-		// numGeoList 数字geometryキャッシュ用
+		// numGeoList
+		// 頂点アニメーション用のGeometryListを生成(数字Geometryの頂点数を全て揃えて作り直す)
 		for (let i = 0; i < 10; ++i) {
 			let geometry = new THREE.BufferGeometry();
 			let position = new THREE.Float32BufferAttribute(count * 3, 3);
-
+			let customColor = new THREE.Float32BufferAttribute(count * 3, 3);
+			let customOpacity = new THREE.Float32BufferAttribute(count, 1);
 			let numAry = numGeometryList[i].attributes.position.array;
-			let len = position.array.length;
-			for (let j = 0; j < len; j += 1) {
-				// if (numAry.length-1 < j){
-				// 	position.array[j] = numAry[numAry.length-1];
-				// } else {
-				// 	position.array[j] = numAry[j];
-				// }
+			let maxCount = numGeometryList[i].attributes.position.count;
+			let add = (customOpacity.count / maxCount);
+
+			for (let j = 0, k = 0; j < customColor.array.length; j += 1, k += add) {
 				position.array[j] = numAry[j % numAry.length];
+				let color = new THREE.Color(0xffffff);
+				let colorH = k / maxCount;
+				color.setHSL(colorH, 0.5, 0.5);
+
+				if (maxCount > j){
+					customOpacity.array[j] = 1.0;
+				} else {
+					customOpacity.array[j] = 0.0;
+					// 頂点数が少ないgeometry用に適当に調整している
+					// let nn = j / maxCount;
+					// if (13 < nn && 15 > nn){
+					// 	customOpacity.array[j] = nn/100;
+					// } else {
+					// 	customOpacity.array[j] = 0.0;
+					// }
+				}
+
+				color.toArray(customColor.array, j * customColor.itemSize);
 			}
 
-
 			geometry.addAttribute('position', position);
+			geometry.addAttribute('customColor', customColor);
+			geometry.addAttribute('customOpacity', customOpacity);
 			numGeoList[i] = geometry;
-
-			numGeoList[i].opacityAmount = count/ numGeometryList[i].attributes.position.count;
 		}
 
 
@@ -100,19 +107,23 @@ export default function () {
 			geometry.addAttribute('nextPosition', nextPosition);
 
 			let customColor = new THREE.Float32BufferAttribute(count * 3, 3);
+			customColor.array = new Float32Array(numGeoList[now[i]].attributes.customColor.array);
 			geometry.addAttribute('customColor', customColor);
 
-			let color = new THREE.Color(0xffffff);
-			for (let j = 0; j < customColor.count; j++) {
-				// console.log(j / customColor.count);
-				// color.setHSL( (j / customColor.count), 0.5, 0.5);
-				color.setHSL( i/6, 0.5, 0.5);
-				color.toArray(customColor.array, j * customColor.itemSize);
-			}
+			let customOpacity = new THREE.Float32BufferAttribute(count, 1);
+			customOpacity.array = new Float32Array(numGeoList[now[i]].attributes.customOpacity.array);
+			geometry.addAttribute('customOpacity', customOpacity);
+
+			// let color = new THREE.Color(0xffffff);
+			// for (let j = 0; j < customColor.count; j++) {
+			// 	color.setHSL((j / numGeometryList[now[i]].attributes.position.array.length), 0.5, 0.5);
+			// 	// color.setHSL( i/6, 0.5, 0.5);
+			// 	color.toArray(customColor.array, j * customColor.itemSize);
+			// }
 
 			let uniforms = {
+				noiseAmount: { type: "f", value: 1.0 },
 				opacity: { type: "f", value: 0.2 },
-				opacityAmount: { type: "f", value: numGeoList[now[i]].opacityAmount},
 				color: { type: "c", value: new THREE.Color(0xffffff) },
 				time: { type: "f", value: 0},
 				progress: { type: "f", value: 0},
@@ -127,36 +138,42 @@ export default function () {
 				transparent: true
 			});
 
-			let vertexesSystem = new THREE.Line(geometry, shaderMaterial);
-			vertexesSystem.position.x = 35 * i - (35 * 2.5);
+			let line = new THREE.Line(geometry, shaderMaterial);
+			line.position.x = 35 * i - (35 * 2.5);
 
 			// 時間表示用頂点
-			vertexesSystemList.push(vertexesSystem);
-			renderManeger3D.scene.add(vertexesSystem);
+			vertexList.push(line);
+			renderManeger3D.scene.add(line);
 		}
 
 
-		// renderManeger3D.scene.background = new THREE.Color(0x050505);
-
-		// camera positon
-		renderManeger3D.camera.position.z = 150;
-
+		// Start
 		if (INK.isSmartPhone()) {
 			renderManeger3D.camera.position.z = 360;
+		} else {
+			renderManeger3D.camera.position.z = 150;
 		}
-
-		// start
 		renderManeger3D.start();
+
+
+		renderManeger3D.gui.params.noise = 0.5;
+
+		renderManeger3D.gui.add(renderManeger3D.gui.params, 'noise', 0, 3).onChange((val) => {
+			vertexList.forEach((item) => {
+				item.material.uniforms.noiseAmount.value = val;
+			});
+		});
 	});
 
 
 	// update
 	renderManeger3D.event.on("update", () => {
-		vertexesSystemList.forEach((item)=>{
+		vertexList.forEach((item)=>{
 			item.material.uniforms.color.value.offsetHSL(0.0005, 0, 0);
 			item.material.uniforms.time.value += 1/60;
 		});
 
+		// 表示時間の更新
 		let _now = getNow();
 		if (now != _now) {
 			for (let i = 0; i < now.length; i++) {
@@ -179,19 +196,21 @@ export default function () {
  * @param {Number} num アニメーションする数字
  */
 function morphTo(index, num) {
-	vertexesSystemList[index].geometry.attributes.nextPosition.array = new Float32Array(numGeoList[num].attributes.position.array);
+	vertexList[index].geometry.attributes.nextPosition.array = new Float32Array(numGeoList[num].attributes.position.array);
+	vertexList[index].geometry.attributes.customColor.array = new Float32Array(numGeoList[num].attributes.customColor.array);
+	vertexList[index].geometry.attributes.customOpacity.array = new Float32Array(numGeoList[num].attributes.customOpacity.array);
+	vertexList[index].material.uniforms.progress.value = 0;
 
-	vertexesSystemList[index].material.uniforms.progress.value = 0;
-	vertexesSystemList[index].material.uniforms.opacityAmount.value = numGeoList[num].opacityAmount;
+	vertexList[index].geometry.attributes.nextPosition.needsUpdate = true;
+	vertexList[index].geometry.attributes.customColor.needsUpdate = true;
+	vertexList[index].geometry.attributes.customOpacity.needsUpdate = true;
+	vertexList[index].geometry.attributes.position.needsUpdate = true;
 
-	vertexesSystemList[index].geometry.attributes.position.needsUpdate = true;
-	vertexesSystemList[index].geometry.attributes.nextPosition.needsUpdate = true;
-
-	TweenMax.to(vertexesSystemList[index].material.uniforms.progress, .5, {
+	TweenMax.to(vertexList[index].material.uniforms.progress, .6, {
 		value: 1,
 		ease: Expo.easeOut,
 		onComplete: () => {
-			vertexesSystemList[index].geometry.attributes.position.array = new Float32Array(numGeoList[num].attributes.position.array);
+			vertexList[index].geometry.attributes.position.array = new Float32Array(numGeoList[num].attributes.position.array);
 		}
 	});
 }
