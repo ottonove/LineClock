@@ -35,9 +35,6 @@ export default class RenderManeger3D {
 		if (this.options.isGui) {
 			this.gui = new dat.GUI();
 
-			if (!INK.hasHash("guiopen")) {
-				this.gui.close();
-			}
 			this.gui.params = {};
 			this.gui.params.stats = this.options.isStats;
 			this.gui.add(this.gui.params, 'stats').name('FPS Metor').onChange(() => {
