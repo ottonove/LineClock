@@ -38,7 +38,7 @@ function init() {
 
 	// numGeometryListに数字の頂点生成して座標をキャッシュしておく
 	let loader = new THREE.FontLoader();
-	let typeface = "../assets/fonts/helvetiker_regular.typeface.json?" + performance.now();
+	let typeface = "./assets/fonts/helvetiker_regular.typeface.json?" + performance.now();
 
 	loader.load(typeface, (font) => {
 		fontData = font;
@@ -141,21 +141,11 @@ function createLine() {
 			position.array[j] = numAry[j % numAry.length];
 			baseColor.setHSL(k / maxCount, 0.5, 0.5);
 
+			// 頂点が重複したら透過
 			if (maxCount > j) {
 				opacity.array[j] = 1.0;
 			} else {
 				opacity.array[j] = 0.0;
-				// 頂点数が少ないgeometry用に適当に調整している
-				// let nn = j / maxCount;
-				// if (9 < nn && 11 > nn){
-				// 	opacity.array[j] = 0.15;
-				// 	let baseColorH = k / 10 / maxCount;
-				// 	baseColor.setHSL(baseColorH, 0.5, 0.5);
-				// } else {
-				// 	opacity.array[j] = 0.0;
-				// 	let baseColorH = k / maxCount;
-				// 	baseColor.setHSL(baseColorH, 0.5, 0.5);
-				// }
 			}
 
 			baseColor.toArray(color.array, j * color.itemSize);
